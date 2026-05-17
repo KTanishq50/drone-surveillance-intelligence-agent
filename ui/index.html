@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drone Surveillance Intelligence</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0a0e1a;
+    color: #c8d6e5;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 56px 1fr;
+    grid-template-columns: 1fr 380px;
+    grid-template-areas:
+      "header header"
+      "feed   chat";
+    overflow: hidden;
+  }
+
+  header {
+    grid-area: header;
+    background: #0d1224;
+    border-bottom: 1px solid #1e2d47;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+  }
+  header h1 { font-size: 15px; font-weight: 600; color: #e2eaf5; letter-spacing: .5px; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 6px #22c55e;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .header-stat {
+    margin-left: auto;
+    display: flex;
+    gap: 24px;
+    font-size: 12px;
+    color: #7a8fa8;
+  }
+  .header-stat span { color: #c8d6e5; font-weight: 500; }
+
+  /* FEED */
+  #feed {
+    grid-area: feed;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #feed::-webkit-scrollbar { width: 4px; }
+  #feed::-webkit-scrollbar-track { background: transparent; }
+  #feed::-webkit-scrollbar-thumb { background: #1e2d47; border-radius: 2px; }
+
+  .card {
+    background: #0d1224;
+    border: 1px solid #1a2640;
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color .2s;
+    animation: slidein .25s ease;
+  }
+  @keyframes slidein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  .card.alert-card {
+    border-color: #7c2020;
+    background: #120d0d;
+  }
+  .card.alert-card.high   { border-color: #c0392b; }
+  .card.alert-card.critical { border-color: #e74c3c; box-shadow: 0 0 12px rgba(231,76,60,.2); }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .badge.ok       { background:#0e2a1a; color:#22c55e; }
+  .badge.alert    { background:#2a0e0e; color:#ef4444; }
+  .badge.medium   { background:#2a1a0e; color:#f59e0b; }
+  .badge.low      { background:#0e1a2a; color:#60a5fa; }
+
+  .frame-id { font-size: 11px; color: #4a6080; }
+  .time-loc { font-size: 11px; color: #4a6080; margin-left: auto; }
+
+  .card-desc {
+    font-size: 13px;
+    color: #c8d6e5;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+
+  .card-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: #4a6080;
+    flex-wrap: wrap;
+  }
+  .card-meta .val { color: #8aabbf; }
+
+  .risk-bar-wrap {
+    margin-top: 10px;
+    height: 3px;
+    background: #1a2640;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .risk-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width .4s ease;
+  }
+
+  .reasoning-list {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #0a0e1a;
+    border-radius: 6px;
+    border-left: 2px solid #c0392b;
+  }
+  .reasoning-list p {
+    font-size: 12px;
+    color: #8aabbf;
+    line-height: 1.6;
+  }
+  .reasoning-list p::before { content: "→ "; color: #c0392b; }
+
+  .action-tag {
+    margin-top: 8px;
+    font-size: 11px;
+    background: #1a0a0a;
+    border: 1px solid #7c2020;
+    border-radius: 4px;
+    padding: 4px 10px;
+    color: #ef9090;
+    display: inline-block;
+  }
+
+  /* CHAT */
+  #chat-panel {
+    grid-area: chat;
+    background: #0d1224;
+    border-left: 1px solid #1e2d47;
+    display: flex;
+    flex-direction: column;
+  }
+  #chat-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid #1e2d47;
+    font-size: 13px;
+    font-weight: 600;
+    color: #c8d6e5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #chat-messages::-webkit-scrollbar { width: 4px; }
+  #chat-messages::-webkit-scrollbar-thumb { background: #1e2d47; border-radius: 2px; }
+
+  .msg {
+    max-width: 90%;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 10px 12px;
+    border-radius: 8px;
+    animation: slidein .2s ease;
+  }
+  .msg.user {
+    background: #1a2a40;
+    color: #c8d6e5;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+  }
+  .msg.assistant {
+    background: #111927;
+    color: #a8bfd4;
+    align-self: flex-start;
+    border: 1px solid #1e2d47;
+    border-bottom-left-radius: 2px;
+  }
+  .msg.thinking {
+    background: #111927;
+    color: #4a6080;
+    align-self: flex-start;
+    font-style: italic;
+    font-size: 12px;
+  }
+
+  #chat-input-row {
+    padding: 12px;
+    border-top: 1px solid #1e2d47;
+    display: flex;
+    gap: 8px;
+  }
+  #chat-input {
+    flex: 1;
+    background: #0a0e1a;
+    border: 1px solid #1e2d47;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #c8d6e5;
+    outline: none;
+    font-family: inherit;
+    resize: none;
+    height: 38px;
+  }
+  #chat-input:focus { border-color: #2a4a70; }
+  #chat-send {
+    background: #1a3a60;
+    border: 1px solid #2a5a90;
+    border-radius: 6px;
+    color: #90c0f0;
+    padding: 0 14px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #chat-send:hover { background: #1e4570; }
+  #chat-send:disabled { opacity: .4; cursor: default; }
+
+  .chain-pill {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: #0e1e30;
+    border: 1px solid #1a3050;
+    color: #5a8ab0;
+    margin-right: 4px;
+  }
+  .chain-pill.escalated { border-color: #7c2020; color: #ef9090; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="status-dot" id="status-dot"></div>
+  <h1>DRONE SURVEILLANCE INTELLIGENCE</h1>
+  <div class="header-stat">
+    <div>Frames processed <span id="stat-frames">0</span></div>
+    <div>Active chains <span id="stat-chains">0</span></div>
+    <div>Alerts <span id="stat-alerts">0</span></div>
+  </div>
+</header>
+
+<div id="feed">
+  <div style="color:#2a4060;font-size:13px;text-align:center;padding:40px 0">
+    Waiting for drone feed...
+  </div>
+</div>
+
+<div id="chat-panel">
+  <div id="chat-header">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Operator Query
+  </div>
+  <div id="chat-messages">
+    <div class="msg assistant">
+      System online. Ask me about current threats, active chains, or specific locations.
+    </div>
+  </div>
+  <div id="chat-input-row">
+    <textarea id="chat-input" placeholder="Ask about current surveillance state..." rows="1"></textarea>
+    <button id="chat-send" onclick="sendChat()">Send</button>
+  </div>
+</div>
+
+<script>
+  let frameCount = 0, alertCount = 0, chainIds = new Set();
+
+  // Connect to SSE stream
+  const evtSource = new EventSource('/stream');
+
+  evtSource.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    if (data.type === 'ping') return;
+    if (data.type === 'done') {
+      document.getElementById('status-dot').style.background = '#4a6080';
+      document.getElementById('status-dot').style.boxShadow = 'none';
+      return;
+    }
+
+    frameCount++;
+    if (data.chain_id) chainIds.add(data.chain_id);
+    if (data.type === 'alert') alertCount++;
+
+    document.getElementById('stat-frames').textContent = frameCount;
+    document.getElementById('stat-chains').textContent = chainIds.size;
+    document.getElementById('stat-alerts').textContent = alertCount;
+
+    renderCard(data);
+
+    // Auto-scroll feed
+    const feed = document.getElementById('feed');
+    feed.scrollTop = feed.scrollHeight;
+  };
+
+  evtSource.onerror = function() {
+    document.getElementById('status-dot').style.background = '#ef4444';
+  };
+
+  function riskColor(score) {
+    if (score >= 0.8) return '#ef4444';
+    if (score >= 0.6) return '#f59e0b';
+    if (score >= 0.4) return '#60a5fa';
+    return '#22c55e';
+  }
+
+  function renderCard(data) {
+    const feed = document.getElementById('feed');
+
+    // Remove placeholder
+    const placeholder = feed.querySelector('[data-placeholder]');
+    if (placeholder) placeholder.remove();
+
+    const isAlert = data.type === 'alert';
+    const susp = (data.suspiciousness || 'low').toLowerCase();
+    const risk = data.risk_score || 0;
+    const riskPct = Math.round(risk * 100);
+    const rColor = riskColor(risk);
+
+    const card = document.createElement('div');
+    card.className = `card${isAlert ? ' alert-card ' + susp : ''}`;
+
+    let chainPill = `<span class="chain-pill${data.chain_status === 'escalated' ? ' escalated' : ''}">chain ${data.chain_id} · ${data.chain_status}</span>`;
+
+    let reasoningHtml = '';
+    if (isAlert && data.reasoning && data.reasoning.length) {
+      const items = data.reasoning.map(r => `<p>${r}</p>`).join('');
+      reasoningHtml = `<div class="reasoning-list">${items}</div>`;
+    }
+
+    let actionHtml = '';
+    if (isAlert && data.recommended_action) {
+      actionHtml = `<div class="action-tag">⚡ ${data.recommended_action}</div>`;
+    }
+
+    const badgeClass = isAlert ? (susp === 'high' || susp === 'critical' ? 'alert' : 'medium') : 'ok';
+    const badgeLabel = isAlert ? `🚨 ${susp}` : '✓ clear';
+
+    card.innerHTML = `
+      <div class="card-top">
+        <span class="badge ${badgeClass}">${badgeLabel}</span>
+        <span class="frame-id">frame ${data.frame_id}</span>
+        ${chainPill}
+        <span class="time-loc">${data.time_str} · ${data.location}</span>
+      </div>
+      <div class="card-desc">${data.description}</div>
+      <div class="card-meta">
+        <div>activity <span class="val">${(data.activity || '').replace(/_/g,' ')}</span></div>
+        <div>risk <span class="val" style="color:${rColor}">${riskPct}%</span></div>
+        <div>suspicion <span class="val">${susp}</span></div>
+      </div>
+      <div class="risk-bar-wrap">
+        <div class="risk-bar" style="width:${riskPct}%;background:${rColor}"></div>
+      </div>
+      ${reasoningHtml}
+      ${actionHtml}
+    `;
+
+    feed.appendChild(card);
+  }
+
+  // Chat
+  async function sendChat() {
+    const input   = document.getElementById('chat-input');
+    const btn     = document.getElementById('chat-send');
+    const msgs    = document.getElementById('chat-messages');
+    const message = input.value.trim();
+    if (!message) return;
+
+    // User bubble
+    const userMsg = document.createElement('div');
+    userMsg.className = 'msg user';
+    userMsg.textContent = message;
+    msgs.appendChild(userMsg);
+    input.value = '';
+    btn.disabled = true;
+
+    // Thinking indicator
+    const thinking = document.createElement('div');
+    thinking.className = 'msg thinking';
+    thinking.textContent = 'Analysing surveillance state...';
+    msgs.appendChild(thinking);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    try {
+      const res  = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json();
+
+      thinking.remove();
+      const reply = document.createElement('div');
+      reply.className = 'msg assistant';
+      reply.textContent = data.answer;
+      msgs.appendChild(reply);
+    } catch(err) {
+      thinking.remove();
+      const errMsg = document.createElement('div');
+      errMsg.className = 'msg assistant';
+      errMsg.textContent = 'Error reaching agent. Is the server running?';
+      msgs.appendChild(errMsg);
+    }
+
+    btn.disabled = false;
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  document.getElementById('chat-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChat();
+    }
+  });
+</script>
+</body>
+</html>
