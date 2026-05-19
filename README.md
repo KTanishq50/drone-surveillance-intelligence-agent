@@ -35,6 +35,7 @@ This project is not just a frame classifier or alert generator — it is a multi
 
 # Demo Video
 
+https://github.com/user-attachments/assets/f63e69ed-9c43-49b1-b9df-456db2907812
 
 ---
 
